@@ -41,3 +41,22 @@ app.on('window-all-closed', function () {
 
 // In this file you can include the rest of your app's specific main process
 // code. You can also put them in separate files and require them here.
+const child_process = require("child_process");
+const forkedProcess = child_process.fork("NodeProc.js", [], { 
+  stdio: "pipe",
+  // uncomment to debug
+  // execArgv: ["--inspect=5888"]
+});
+forkedProcess.stdout.pipe(process.stdout);
+
+console.log("Spawned child process", forkedProcess.pid);
+
+forkedProcess.on("exit", () => {
+  console.log("child process exited");
+});
+forkedProcess.on("message", (message) => {
+  console.log(message);
+});
+forkedProcess.on("error", () => {
+  console.log("child process sent an error");
+});
