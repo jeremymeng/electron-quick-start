@@ -13,29 +13,68 @@ const ContainerSasUrl = process.env.CONTAINER_SAS_URL || "<container sas url>"
 const count = 90;
 const maxresults = 5000;
 
-const node_fetch = require("node-fetch");
+const https = require("https");
+
 const fetchUrl = ContainerSasUrl + `&restype=container&comp=list&maxresults=${maxresults}`;
-let fetchParams = {
-  method: "GET",
-  headers: {
-    "x-ms-version": "2020-02-10",
-  }
+const { parseXML } = require("@azure/core-http");
+
+async function httpsGet(url) {
+  return new Promise((resolve, reject) => {
+	  // body is stream
+	  // get ready to actually consume the body
+	  let accum = [];
+	  let accumBytes = 0;
+    let hasOpenTag = false;
+    let hasCloseTag = false;
+    https.get(url, (res) => {
+      res.on('data', (d) => {
+        if (d.toString().indexOf("<EnumerationResults") >= 0) {
+          hasOpenTag = true;
+        }
+        if (d.toString().indexOf("</EnumerationResults>") >= 0) {
+          hasCloseTag = true;
+        }
+			  accumBytes += d.length;
+        accum.push(d);
+      });
+
+		  res.on('error', (err) => {
+				// other errors, such as incorrect content-encoding
+				reject(new Error(`Invalid response body while trying to download`, 'system', err));
+		  });
+
+      res.on('end', () => {
+			  try {
+          console.log(`  accumBytes: ${accumBytes}`);
+          if (hasOpenTag && !hasCloseTag) {
+            console.log(`  hasOpenTag: ${hasOpenTag} | hasCloseTag: ${hasCloseTag}`);
+          }
+				  resolve(Buffer.concat(accum, accumBytes));
+			  } catch (err) {
+				  reject(new Error(`Could not create Buffer from response body`, 'system', err));
+			  }
+      })
+    });
+  });
 }
 
-const {parseXML} = require("@azure/core-http");
-
-async function doListingUntilDoneFetch(id) {
+async function doListingUntilDoneHttpsGet(id) {
   try {
     let marker = undefined;
+    let pageNum = 1;
     while (true) {
       try {
-        console.log(`listing blobs`, id);
+        const customId = `${id}-page${pageNum++}`;
+        console.log(`listing blobs ${customId}`);
         await new Promise((resolve) => setTimeout(resolve, 1000));
-        fetchParams.headers["x-ms-date"] = new Date().toUTCString();
         const url = marker ? fetchUrl + `&marker=${marker}` : fetchUrl;
-        // console.log(`  fetching ${url}`);
-        const response = await node_fetch(url, fetchParams);
-        const obj = await parseXML(await response.text());
+        // console.log(` getting ${url}`);
+        const buffer = await httpsGet(url + `&customId=${customId}`);
+        const str = await buffer.toString();
+        if (str.indexOf("<EnumerationResults") >= 0 && str.indexOf("</EnumerationResults>") === -1) {
+          throw new Error(`incomplete XML response when listing for ${customId}`)
+        }
+        const obj = await parseXML(str);
         // console.dir(obj);
         marker = obj.NextMarker;
         if (marker === "") {
@@ -56,7 +95,7 @@ console.log('Starting to list lots of blobs');
 
 let listingDone = false;
 for (let i = 0; i < count; i++) {
-    promises.push(doListingUntilDoneFetch(i));
+  promises.push(doListingUntilDoneHttpsGet(i));
 }
 console.log('For loop done');
 
