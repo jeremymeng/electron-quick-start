@@ -48,12 +48,15 @@ async function httpsGet(url) {
           console.log(`  accumBytes: ${accumBytes}`);
           if (hasOpenTag && !hasCloseTag) {
             console.log(`  hasOpenTag: ${hasOpenTag} | hasCloseTag: ${hasCloseTag}`);
+            console.dir(res.headers);
           }
 				  resolve(Buffer.concat(accum, accumBytes));
 			  } catch (err) {
 				  reject(new Error(`Could not create Buffer from response body`, 'system', err));
 			  }
       })
+    }).on("error", (e) => {
+      reject(new Error(`error from https.get()`, "system", e));
     });
   });
 }
