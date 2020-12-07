@@ -26,6 +26,7 @@ async function httpsGet(url) {
 	  let accumBytes = 0;
     let hasOpenTag = false;
     let hasCloseTag = false;
+    let lastChunkLength = 0;
     https.get(url, (res) => {
       res.on('data', (d) => {
         if (d.toString().indexOf("<EnumerationResults") >= 0) {
@@ -35,6 +36,7 @@ async function httpsGet(url) {
           hasCloseTag = true;
         }
 			  accumBytes += d.length;
+        lastChunkLength = d.length;
         accum.push(d);
       });
 
@@ -44,7 +46,7 @@ async function httpsGet(url) {
 		  });
 
       res.on('close', () => {
-        console.log(`stream closed`);
+        console.log(`stream closed ${url}`);
 		  });
 
       res.on('timeout', () => {
@@ -54,6 +56,7 @@ async function httpsGet(url) {
       res.on('end', () => {
 			  try {
           console.log(`  accumBytes: ${accumBytes}`);
+          console.log(`  last chunk length: ${lastChunkLength}`);
           if (hasOpenTag && !hasCloseTag) {
             console.log(`  hasOpenTag: ${hasOpenTag} | hasCloseTag: ${hasCloseTag}`);
           }
