@@ -43,12 +43,19 @@ async function httpsGet(url) {
 				reject(new Error(`Invalid response body while trying to download`, 'system', err));
 		  });
 
+      res.on('close', () => {
+        console.log(`stream closed`);
+		  });
+
+      res.on('timeout', () => {
+        console.log(`stream timed out due to inactivity`);
+		  });
+
       res.on('end', () => {
 			  try {
           console.log(`  accumBytes: ${accumBytes}`);
           if (hasOpenTag && !hasCloseTag) {
             console.log(`  hasOpenTag: ${hasOpenTag} | hasCloseTag: ${hasCloseTag}`);
-            console.dir(res.headers);
           }
 				  resolve(Buffer.concat(accum, accumBytes));
 			  } catch (err) {
