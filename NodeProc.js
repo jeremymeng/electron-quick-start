@@ -10,7 +10,7 @@ require("dotenv").config();
 const promises = [];
 const ContainerSasUrl = process.env.CONTAINER_SAS_URL || "<container sas url>"
 
-const count = 90;
+const count = 120;
 const maxresults = 5000;
 
 const https = require("https");
@@ -66,6 +66,8 @@ async function httpsGet(url) {
 			  }
       })
     }).on("error", (e) => {
+      console.log(`error from https.get()`);
+      console.dir(e);
       reject(new Error(`error from https.get()`, "system", e));
     });
   });
